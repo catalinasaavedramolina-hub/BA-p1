@@ -1,0 +1,120 @@
+---
+title: "Dashboard de Ventas"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+
+ventas <- read.csv("ventas_medicamentos.csv")
+
+ventas <- ventas %>%
+  mutate(
+    Fecha = as.Date(Fecha),
+    Ganancia_Unit = Precio_Unitario - Costo_Unitario,
+    Ganancia = Ganancia_Unit * Cantidad,
+    Venta_Total = Precio_Unitario * Cantidad)
+
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Ventas Totales y Utilidades
+
+```{r}
+total_ventas <- sum(ventas$Venta_Total)
+total_ganancia <- sum(ventas$Ganancia)
+ventas_promedio <- mean(ventas$Venta_Total)
+
+ventas_dia <- ventas %>%
+group_by(Fecha) %>%
+summarise(Ventas = sum(Venta_Total)/1e6)
+
+ggplot(ventas_dia, aes(x = Fecha, y = Ventas)) +
+  geom_line(color = "mediumblue", size = 1) +
+  geom_point(color = "mediumblue", size = 2) +
+  labs(
+    title = "Evolución diaria de ventas",
+    x = "Fecha",
+    y = "Ventas ($) (millones de $)"
+  ) +
+  theme_minimal()
+
+```
+
+### Desempeño por Sucursal
+
+```{r}
+por_sucursal <- ventas %>%
+group_by(Farmacia) %>%
+summarise(Ventas=sum(Venta_Total)/1e6,
+Ganancia=sum(Ganancia)/1e6)
+
+ggplot(por_sucursal, aes(x = Farmacia)) +
+  geom_col(aes(y = Ventas, fill = "Ventas"), position = "dodge") +
+  geom_col(aes(y = Ganancia, fill = "Ganancia"), position = "dodge") +
+  scale_fill_manual(values = c("Ventas" = "turquoise", "Ganancia" = "darkgreen")) +
+  labs(
+    title = "Ventas y ganancias por sucursal",
+    x = "Sucursal",
+    y = "Monto (millones de $)",
+    fill = ""
+  ) +
+  theme_minimal()
+
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Mix de Productos (ATC)
+
+```{r}
+por_ATC <- ventas %>%
+group_by(Tipo_ATC) %>%
+summarise(Ventas=sum(Venta_Total)/1e6) %>%
+arrange(desc(Ventas))
+
+ggplot(por_ATC, aes(x = Ventas, y = reorder(Tipo_ATC, Ventas))) +
+  geom_col(fill = "orange") +
+  labs(
+    title = "Distribución de ventas por categoría terapéutica (ATC)",
+    x = "Ventas (millones de $)",
+    y = "Categoría ATC"
+  ) +
+  theme_minimal()
+```
+
+### Rendimiento por Tipo de Cliente
+
+```{r}
+por_vendedor <- ventas %>%
+group_by(Vendedor) %>%
+summarise(Ventas=sum(Venta_Total)) %>%
+arrange(desc(Ventas))
+
+por_cliente <- ventas %>%
+group_by(Tipo_Cliente) %>%
+summarise(Ventas=sum(Venta_Total)/1e6)
+
+
+ggplot(por_cliente, aes(x = Tipo_Cliente, y = Ventas, fill = Tipo_Cliente)) +
+  geom_col() +
+  scale_fill_brewer(palette = "Pastel1") +
+  labs(
+    title = "Ventas por tipo de cliente",
+    x = "Tipo de cliente",
+    y = "Ventas (millones de $)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+
+```
+
